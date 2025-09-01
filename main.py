@@ -7,8 +7,10 @@ def main():
     df_microplastics = extract(file_path_microplastics)
     df_species = extract(file_path_species)
 
-    df = transform(df_microplastics, df_species)
-    df.info()
+    dfs = transform(df_microplastics, df_species)
+    for name, table in dfs.items():
+        print(f"\n{name}:")
+        print(table.head())
 
 if __name__ == '__main__':
     main()
