@@ -3,6 +3,7 @@ from ETL.transform import transform
 from ETL.load import load
 from DB.create_db import create_database, get_engine
 from sqlalchemy import text
+from reports.visualizations import generate_all_figures
 
 def print_db_state(engine):
     with engine.begin() as conn:
@@ -32,14 +33,19 @@ def main():
     # 3) Transform
     dfs = transform(df_microplastics, df_species)
 
-    # see first rows of each table
+    # Preview
     for name, table in dfs.items():
         print(f"\n{name}:")
         print(table.head())
 
     # 4) Load
     load(dfs, engine)
-    print("ETL COMPLETED. DATA WERE LOADED INTO MySQL.")
+    print("ETL COMPLETED. DATA WAS LOADED INTO MySQL.")
+
+    # Generar visualizaciones (PNG/CSV)
+    generate_all_figures(engine, start_date=None, end_date=None, save_dir="reports/figures", also_show=False)
+    print("Figures exported to reports/figures/")
+   
 
 if __name__ == '__main__':
     main()
