@@ -39,7 +39,7 @@ def main():
 
     # 4) Load
     load(dfs, engine)
-    print("ETL cOMPLETED. DATA WERE LOADED INTO MySQL.")
+    print("ETL COMPLETED. DATA WERE LOADED INTO MySQL.")
 
 if __name__ == '__main__':
     main()
