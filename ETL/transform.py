@@ -66,8 +66,10 @@ def transform(df_microplastics, df_species):
 
     # Date
     df_microplastics_clean["Date (MM-DD-YYYY)"] = pd.to_datetime(
-        df_microplastics_clean["Date (MM-DD-YYYY)"], errors="coerce"
-    )
+    df_microplastics_clean["Date (MM-DD-YYYY)"],
+    format="%m-%d-%Y",
+    errors="coerce"
+)
 
     df = pd.merge(
         df_microplastics_clean,
@@ -90,7 +92,7 @@ def transform(df_microplastics, df_species):
     df_microplastics_clean = df_microplastics_clean.drop(columns=[c for c in cols_to_drop if c in df_microplastics_clean.columns])
     df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
 
-    # DIMENSIONES
+    # DIMENSIONS
     dim_location = df[["Latitude", "Longitude"]].dropna().drop_duplicates().reset_index(drop=True)
     dim_location["LocationID"] = dim_location.index + 1
 
@@ -120,7 +122,7 @@ def transform(df_microplastics, df_species):
     dim_org = df[["ORGANIZATION"]].dropna().drop_duplicates().reset_index(drop=True)
     dim_org["OrganizationID"] = dim_org.index + 1
 
-    # HECHOS
+    # FACTS
     fact_micro = df_microplastics_clean \
         .merge(dim_location, on=["Latitude", "Longitude"], how="left") \
         .merge(dim_region, on=["Ocean", "Region"], how="left") \
