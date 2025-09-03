@@ -158,13 +158,11 @@ SELECT
   l.longitude,
   d.full_date
 FROM fact_species s
-JOIN fact_microplastics m ON m.location_id = s.location_id
+LEFT JOIN fact_microplastics m ON m.location_id = s.location_id
 LEFT JOIN dim_region r ON m.region_id = r.region_id
 LEFT JOIN dim_ocean o ON m.ocean_id = o.ocean_id
 LEFT JOIN dim_location l ON s.location_id = l.location_id
 LEFT JOIN dim_date d ON m.date_id = d.date_id
-WHERE (:start_date IS NULL OR d.full_date >= :start_date)
-  AND (:end_date IS NULL OR d.full_date < :end_date)
-  AND l.latitude BETWEEN -90 AND 90
-  AND l.longitude BETWEEN -180 AND 180;
+WHERE l.latitude IS NOT NULL
+  AND l.longitude IS NOT NULL;
 """)

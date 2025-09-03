@@ -119,41 +119,82 @@ def plot_conc_matrix(df, out_path):
     csv_path = out_path.replace(".png", ".csv")
     _save_table(df, csv_path)
 
-def plot_species_micro_map(df: pd.DataFrame, out_path: str):
-    df = df.dropna(subset=["latitude", "longitude", "species_count", "measurement"])
+def plot_species_micro_map(df: pd.DataFrame, out_path: str, top_n=200):
+    """
+    Global map mostrando microplastics (rojo) y especies (verde) solo para los puntos más importantes.
+    top_n: número máximo de puntos a mostrar por cada categoría
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+
+    df = df.dropna(subset=["latitude", "longitude"])
     if df.empty:
+        print("No hay datos válidos para mostrar.")
         return
 
+    # Convertir coordenadas a float y depurar
     df["latitude"] = df["latitude"].astype(float)
     df["longitude"] = df["longitude"].astype(float)
+    df = df[(df["latitude"] >= -90) & (df["latitude"] <= 90)]
+    df["longitude"] = df["longitude"].apply(lambda x: x if x <= 180 else x - 360)
+    df = df[(df["longitude"] >= -180) & (df["longitude"] <= 180)]
 
-    sizes = np.clip(df["measurement"], 0, None) * 10
-    sizes = np.clip(sizes, 10, 300)
-    colors = df["species_count"]
+    # Seleccionar top_n por species_count
+    df_species = df[df["species_count"].notna()]
+    df_species = df_species.sort_values("species_count", ascending=False).head(top_n)
 
-    plt.figure(figsize=(14,7))
+    # Seleccionar top_n por measurement
+    df_micro = df[df["measurement"].notna()]
+    df_micro = df_micro.sort_values("measurement", ascending=False).head(top_n)
+
+    # Tamaños proporcionales
+    sizes_species = np.clip(df_species["species_count"], 0, None) * 5
+    sizes_species = np.clip(sizes_species, 5, 150)
+
+    sizes_species = np.log1p(df_species["species_count"]) * 20
+    sizes_micro = np.log1p(df_micro["measurement"]) * 50
+
+    # Crear mapa
+    plt.figure(figsize=(16,8))
     ax = plt.axes(projection=ccrs.PlateCarree())
     ax.set_global()
-    ax.coastlines()
-    ax.add_feature(cfeature.LAND, facecolor="lightgray")
-    ax.add_feature(cfeature.OCEAN, facecolor="lightblue")
-    ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
+    ax.coastlines(linewidth=0.8)
+    ax.add_feature(cfeature.LAND, facecolor="#f0f0f0")
+    ax.add_feature(cfeature.OCEAN, facecolor="#a6cee3")
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.3, linestyle='--')
+    gl.top_labels = False
+    gl.right_labels = False
 
-    scatter = ax.scatter(
-        df["longitude"], df["latitude"],
-        s=sizes,
-        c=colors,
-        cmap="viridis",
+    # Scatter especies (verde)
+    ax.scatter(
+        df_species["longitude"], df_species["latitude"],
+        s=sizes_species,
+        c="green",
         alpha=0.7,
-        edgecolor="k",
-        linewidth=0.3,
-        transform=ccrs.PlateCarree()
+        edgecolor='none',
+        transform=ccrs.PlateCarree(),
+        label="Species Count"
     )
-    plt.colorbar(scatter, label="Species Count", orientation="vertical", shrink=0.5)
-    plt.title("Species Count vs Microplastics Measurement by Location")
+
+    # Scatter microplastics (rojo)
+    ax.scatter(
+        df_micro["longitude"], df_micro["latitude"],
+        s=sizes_micro,
+        c="red",
+        alpha=0.7,
+        edgecolor='none',
+        transform=ccrs.PlateCarree(),
+        label="Microplastics"
+    )
+
+    plt.legend(loc="upper right")
+    plt.title("Top Locations: Species (verde) vs Microplastics (rojo)")
     plt.tight_layout()
     plt.savefig(out_path, dpi=140)
-    plt.close()
+    plt.show()
+
 
 # ---------------------------
 # Generate All Figures
