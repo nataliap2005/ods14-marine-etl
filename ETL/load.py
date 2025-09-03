@@ -15,6 +15,7 @@ def load(dfs: dict, engine):
         # Dimensiones
         order_dims = [
             ("dim_location", "dim_location"),
+            ("dim_ocean", "dim_ocean"),
             ("dim_region", "dim_region"),
             ("dim_marine", "dim_marine_setting"),
             ("dim_sampling", "dim_sampling_method"),

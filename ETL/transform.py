@@ -46,7 +46,7 @@ def transform(df_microplastics, df_species):
     df_microplastics_clean = df_microplastics.copy()
 
     # ===== CLEANING =====
-    # Ocean / Region
+    # Ocean / Region: limpieza inicial
     for col in ["ocean", "region"]:
         if col in df_microplastics_clean.columns:
             df_microplastics_clean[col] = (
@@ -128,19 +128,16 @@ def transform(df_microplastics, df_species):
     df.drop(columns=[c for c in cols_to_drop if c in df.columns], inplace=True)
 
     # ===== DIMENSIONS =====
+    # Locations
     dim_location = df[["latitude", "longitude"]].dropna().drop_duplicates().reset_index(drop=True)
     dim_location["location_id"] = dim_location.index + 1
 
+    # Ocean
+    dim_ocean = df_microplastics_clean[["ocean"]].dropna().drop_duplicates().reset_index(drop=True)
+    dim_ocean["ocean_id"] = dim_ocean.index + 1
+
     # Region
-    dim_region_base = df_microplastics_clean[["ocean", "region"]].dropna(subset=["region"]).drop_duplicates()
-    oceans_present = df_microplastics_clean["ocean"].dropna().drop_duplicates().to_list()
-    unknown_by_ocean = pd.DataFrame({"ocean": oceans_present, "region": ["Unknown"] * len(oceans_present)})
-    unknown_global = pd.DataFrame({"ocean": [np.nan], "region": ["Unknown"]})
-    dim_region = (
-        pd.concat([dim_region_base, unknown_by_ocean, unknown_global], ignore_index=True)
-        .drop_duplicates()
-        .reset_index(drop=True)
-    )
+    dim_region = df_microplastics_clean[["region"]].dropna().drop_duplicates().reset_index(drop=True)
     dim_region["region_id"] = dim_region.index + 1
 
     # Marine
@@ -175,7 +172,8 @@ def transform(df_microplastics, df_species):
     fact_micro = (
         df_microplastics_clean
         .merge(dim_location, on=["latitude", "longitude"], how="left")
-        .merge(dim_region, on=["ocean", "region"], how="left")
+        .merge(dim_ocean, on="ocean", how="left")
+        .merge(dim_region, on="region", how="left")
         .merge(dim_marine, on="marine_setting", how="left")
         .merge(dim_sampling, on="sampling_method", how="left")
         .merge(dim_unit, on="unit", how="left")
@@ -183,9 +181,11 @@ def transform(df_microplastics, df_species):
         .merge(dim_date[["date_id", "full_date"]], left_on="full_date", right_on="full_date", how="left")
         .merge(dim_org, on="organization", how="left")
     )
+    fact_micro["ocean_id"] = fact_micro["ocean_id"].astype("Int64")
 
     fact_micro = fact_micro[[
         "location_id",
+        "ocean_id",
         "region_id",
         "marine_setting_id",
         "method_id",
@@ -201,6 +201,7 @@ def transform(df_microplastics, df_species):
 
     return {
         "dim_location": dim_location,
+        "dim_ocean": dim_ocean,  
         "dim_region": dim_region,
         "dim_marine": dim_marine,
         "dim_sampling": dim_sampling,
