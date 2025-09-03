@@ -6,3 +6,6 @@ cryptography==42.0.5
 python-dateutil==2.8.2
 dash==2.10.2
 dash-bootstrap-components==1.4.1
+seaborn==0.12.2
+matplotlib==3.8.1
+cartopy==0.23.1

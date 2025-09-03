@@ -1,0 +1,84 @@
+region,class_text,avg_measurement,n_samples
+Bay of Bengal,High,32.584785265306124,49
+Bay of Bengal,Low,91.25,6
+Bay of Bengal,Medium,726.5010794609929,141
+Bay of Bengal,Very High,217.5,5
+Bay of Bengal,Very Low,0.0,1
+Caribbean Sea,High,1.936363636363636,15
+Caribbean Sea,Low,0.0028697708333333357,391
+Caribbean Sea,Medium,48.462112542918454,504
+Caribbean Sea,Very Low,0.010834486514522821,975
+Celtic Sea,High,1.0,1
+Celtic Sea,Low,6.500615384615385,13
+Celtic Sea,Medium,12.0443267,20
+Celtic Sea,Very High,32.75,4
+Celtic Sea,Very Low,0.0,10
+Coastal Waters of Southeast Alaska and British Columbia,Low,0.002058823529411765,17
+Coastal Waters of Southeast Alaska and British Columbia,Medium,0.01276923076923077,22
+Coastal Waters of Southeast Alaska and British Columbia,Very Low,0.0,38
+Coral Sea,Low,0.002426,2
+Coral Sea,Medium,0.084161,84
+Coral Sea,Very High,56.25,4
+Coral Sea,Very Low,0.0,10
+East China Sea,High,5699.879221159999,25
+East China Sea,Low,168.8898888888889,9
+East China Sea,Medium,3969.8927182745088,102
+East China Sea,Very High,52061.333333333336,6
+East China Sea,Very Low,0.0,5
+Great Australian Bight,Low,0.0037913333333333336,3
+Great Australian Bight,Medium,0.03249941666666667,24
+Great Australian Bight,Very Low,0.0,26
+Gulf of Alaska,Low,0.0019000000000000002,10
+Gulf of Alaska,Medium,0.013571428571428576,35
+Gulf of Alaska,Very Low,0.0,6
+Gulf of America (formerly Gulf of Mexico),High,9.266666666666667,1037
+Gulf of America (formerly Gulf of Mexico),Low,0.002633,303
+Gulf of America (formerly Gulf of Mexico),Medium,1350.828658704,2435
+Gulf of America (formerly Gulf of Mexico),Very High,1886.5377777777778,212
+Gulf of America (formerly Gulf of Mexico),Very Low,0.0,830
+Gulf of California,Low,0.0027755555555555554,9
+Gulf of California,Medium,1707.372597736842,76
+Gulf of California,Very Low,0.0,31
+Gulf of Thailand,High,34400.0,3
+Gulf of Thailand,Low,268.5717142857143,14
+Gulf of Thailand,Medium,10254.857142857143,28
+Gulf of Thailand,Very High,177668.57142857142,14
+Gulf of Thailand,Very Low,80.0,1
+Inner Seas off the West Coast of Scotland,Low,0.003185,1
+Inner Seas off the West Coast of Scotland,Medium,0.09763752287581699,153
+Inner Seas off the West Coast of Scotland,Very Low,0.0,71
+Laccadive Sea,High,39.1164,5
+Laccadive Sea,Low,13.440526315789473,21
+Laccadive Sea,Medium,23.16945663716814,113
+Laccadive Sea,Very High,448.5,6
+Laccadive Sea,Very Low,1.33,1
+Laptev Sea,High,1.3206716250000001,8
+Laptev Sea,Low,0.0045,1
+Laptev Sea,Medium,0.42517287500000006,8
+Laptev Sea,Very Low,0.0,21
+Mediterranean Sea,High,2.688231827044026,319
+Mediterranean Sea,Low,3.47347619047619,21
+Mediterranean Sea,Medium,1.895562137691238,719
+Mediterranean Sea,Very High,196.89810573170732,41
+Mediterranean Sea,Very Low,0.840625,32
+North Sea,High,4.6229955,2
+North Sea,Low,0.003909785714285714,14
+North Sea,Medium,0.062350521126760546,143
+North Sea,Very High,31.0,1
+North Sea,Very Low,0.0,93
+Philippine Sea,High,2.8608776666666667,6
+Philippine Sea,Low,0.0034453333333333337,3
+Philippine Sea,Medium,0.1340242213740458,131
+Philippine Sea,Very High,145.5,2
+Philippine Sea,Very Low,0.0,4
+South China Sea,Low,0.0023333333333333335,3
+South China Sea,Medium,256.8895264736842,19
+South China Sea,Very High,2317.4444444444443,99
+South China Sea,Very Low,0.0,7
+Stellwagen Bank National Marine Sanctuary,Low,0.0025608000000000002,5
+Stellwagen Bank National Marine Sanctuary,Medium,0.02761076923076923,13
+Stellwagen Bank National Marine Sanctuary,Very Low,0.0,34
+Tasman Sea,Low,0.0027312666666666667,15
+Tasman Sea,Medium,0.06047584615384615,65
+Tasman Sea,Very High,70.5,2
+Tasman Sea,Very Low,0.0,21
