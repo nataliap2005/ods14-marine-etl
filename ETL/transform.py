@@ -35,7 +35,7 @@ def transform(df_microplastics, df_species):
 
     df_microplastics_clean = df_microplastics.copy()
 
-    # Ocean / Region: strip + vacíos y variantes -> NaN
+    # Ocean / Region: strip + vacíos -> NaN
     for col in ["Ocean", "Region"]:
         if col in df_microplastics_clean.columns:
             df_microplastics_clean[col] = (
@@ -101,7 +101,7 @@ def transform(df_microplastics, df_species):
             df_microplastics_clean["Date (MM-DD-YYYY)"]
         )
 
-    # ===== MERGE BASE (para cruzar con especies por lat/lon si hace falta) =====
+    # ===== MERGE BASE =====
     df = pd.merge(
         df_microplastics_clean,
         df_species,
@@ -129,10 +129,26 @@ def transform(df_microplastics, df_species):
     dim_location = df[["Latitude", "Longitude"]].dropna().drop_duplicates().reset_index(drop=True)
     dim_location["LocationID"] = dim_location.index + 1
 
-    # Region (desde micro, así matchea lo que realmente existe en micro)
-    dim_region = (
+    # --- Dimensión Región con filas 'Unknown' ---
+    dim_region_base = (
         df_microplastics_clean[["Ocean", "Region"]]
         .dropna(subset=["Region"])
+        .drop_duplicates()
+    )
+    oceans_present = (
+        df_microplastics_clean["Ocean"]
+        .dropna()
+        .drop_duplicates()
+        .to_list()
+    )
+    unknown_by_ocean = pd.DataFrame({
+        "Ocean": oceans_present,
+        "Region": ["Unknown"] * len(oceans_present)
+    })
+    unknown_global = pd.DataFrame({"Ocean": [np.nan], "Region": ["Unknown"]})
+
+    dim_region = (
+        pd.concat([dim_region_base, unknown_by_ocean, unknown_global], ignore_index=True)
         .drop_duplicates()
         .reset_index(drop=True)
     )
@@ -167,11 +183,11 @@ def transform(df_microplastics, df_species):
     dim_org["OrganizationID"] = dim_org.index + 1
 
     # ===== HECHOS =====
-    # fact_micro con merge por Ocean+Region y fallback por Region si faltan
+    # 1) intento por Ocean+Region
     fact_micro = (
         df_microplastics_clean
         .merge(dim_location, on=["Latitude", "Longitude"], how="left")
-        .merge(dim_region, on=["Ocean", "Region"], how="left")  # primer intento (Region+Ocean)
+        .merge(dim_region, on=["Ocean", "Region"], how="left")
         .merge(dim_marine, on="Marine Setting", how="left")
         .merge(dim_sampling, on="Sampling Method", how="left")
         .merge(dim_unit, on="Unit", how="left")
@@ -180,12 +196,29 @@ def transform(df_microplastics, df_species):
         .merge(dim_org, on="ORGANIZATION", how="left")
     )
 
-    # Fallback: si RegionID sigue NaN (por Ocean faltante), intentar por Region solamente
-    if fact_micro["RegionID"].isna().any():
-        fact_micro = fact_micro.drop(columns=["RegionID"]).merge(
+    # 2) Fallback: si RegionID es NaN y hay 'Region', buscar por Region sola
+    mask = fact_micro["RegionID"].isna() & fact_micro["Region"].notna()
+    if mask.any():
+        tmp = fact_micro.loc[mask, ["Region"]].merge(
             dim_region[["Region", "RegionID"]].drop_duplicates(),
             on="Region", how="left"
         )
+        fact_micro.loc[mask, "RegionID"] = tmp["RegionID"].values
+
+    # 3) Fallback: si sigue NaN y hay Ocean, usar 'Unknown' de ese Ocean
+    mask = fact_micro["RegionID"].isna() & fact_micro["Ocean"].notna()
+    if mask.any():
+        unk_per_ocean = dim_region[dim_region["Region"] == "Unknown"][["Ocean", "RegionID"]]
+        tmp = fact_micro.loc[mask, ["Ocean"]].merge(unk_per_ocean, on="Ocean", how="left")
+        fact_micro.loc[mask, "RegionID"] = tmp["RegionID"].values
+
+    # 4) Fallback final: 'Unknown' global (sin Ocean)
+    mask = fact_micro["RegionID"].isna()
+    if mask.any():
+        unknown_global_id = dim_region[
+            (dim_region["Region"] == "Unknown") & (dim_region["Ocean"].isna())
+        ]["RegionID"].iloc[0]
+        fact_micro.loc[mask, "RegionID"] = unknown_global_id
 
     fact_micro = fact_micro[[
         "LocationID",
