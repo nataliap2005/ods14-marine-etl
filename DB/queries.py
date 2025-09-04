@@ -168,11 +168,8 @@ WHERE l.latitude IS NOT NULL
 """)
 
 # -------------------------------------------------
-#prueba
-# 8) 
-# ===== Nuevas consultas =====
 
-# Tendencia por año (promedio, total y #muestras)
+# 8) Tendencia por año (promedio, total y #muestras)
 YEAR_TREND = text("""
 SELECT
   d.year,
@@ -187,7 +184,7 @@ GROUP BY d.year
 ORDER BY d.year;
 """)
 
-# Ranking por océano (total, promedio y #muestras)
+#9 Ranking por océano (total, promedio y #muestras)
 OCEAN_RANKING_TOTAL = text("""
 SELECT
   o.ocean,
@@ -288,4 +285,91 @@ JOIN dim_region r ON r.region_id = ranked.region_id
 WHERE q_micro = 4 AND q_species = 1
 GROUP BY r.region
 ORDER BY n_low_high DESC;
+""")
+
+#14 Muestras por año
+SAMPLES_PER_YEAR = text("""
+SELECT
+  d.year,
+  COUNT(*) AS n_samples
+FROM fact_microplastics m
+JOIN dim_date d ON d.date_id = m.date_id
+WHERE (:start_date IS NULL OR d.full_date >= :start_date)
+  AND (:end_date   IS NULL OR d.full_date <  :end_date)
+GROUP BY d.year
+ORDER BY d.year;
+""")
+#Metodos de recoleccion por año
+METHODS_BY_YEAR_COUNTS = text("""
+SELECT
+  d.year,
+  sm.sampling_method,
+  COUNT(*) AS n_samples
+FROM fact_microplastics m
+JOIN dim_date d             ON d.date_id    = m.date_id
+LEFT JOIN dim_sampling_method sm ON sm.method_id = m.method_id
+WHERE (:start_date IS NULL OR d.full_date >= :start_date)
+  AND (:end_date   IS NULL OR d.full_date <  :end_date)
+GROUP BY d.year, sm.sampling_method
+ORDER BY d.year, n_samples DESC;
+""")
+
+#15 Métodos por banda de profundidad (heatmap)
+METHODS_BY_WATERSAMPLEDEPTH = text("""
+SELECT
+  CASE
+    WHEN depth_val IS NULL THEN 'Unknown'
+    WHEN depth_val < 5   THEN '0–5m'
+    WHEN depth_val < 20  THEN '5–20m'
+    WHEN depth_val < 50  THEN '20–50m'
+    WHEN depth_val < 200 THEN '50–200m'
+    ELSE '200m+'
+  END AS depth_band,
+  TRIM(LOWER(sm.sampling_method)) AS sampling_method,
+  COUNT(*) AS n_samples
+FROM (
+  SELECT
+    CAST(REPLACE(TRIM(
+      NULLIF(TRIM(water_sample_depth), '')
+    ), ',', '.') AS DOUBLE) AS depth_val,
+    method_id
+  FROM fact_microplastics
+) m
+LEFT JOIN dim_sampling_method sm 
+  ON sm.method_id = m.method_id
+GROUP BY depth_band, sampling_method
+ORDER BY depth_band, n_samples DESC;
+
+""")
+
+# 16) Ranking por Entorno Marino
+MARINE_SETTING_RANKING = text("""
+SELECT
+  ms.marine_setting,
+  AVG(m.measurement) AS avg_microplastics,
+  SUM(m.measurement) AS total_microplastics,
+  COUNT(*)           AS n_samples
+FROM fact_microplastics m
+LEFT JOIN dim_marine_setting ms ON ms.marine_setting_id = m.marine_setting_id
+LEFT JOIN dim_date d           ON d.date_id            = m.date_id
+WHERE (:start_date IS NULL OR d.full_date >= :start_date)
+  AND (:end_date   IS NULL OR d.full_date <  :end_date)
+  AND ms.marine_setting IS NOT NULL
+GROUP BY ms.marine_setting
+ORDER BY avg_microplastics DESC
+LIMIT 10;
+""")
+
+# 17) Tendencia Mensual/Estacional
+MONTHLY_TREND = text("""
+SELECT
+  d.month,
+  AVG(m.measurement) AS avg_microplastics,
+  COUNT(*)           AS n_samples
+FROM fact_microplastics m
+JOIN dim_date d ON d.date_id = m.date_id
+WHERE (:start_date IS NULL OR d.full_date >= :start_date)
+  AND (:end_date   IS NULL OR d.full_date <  :end_date)
+GROUP BY d.month
+ORDER BY d.month;
 """)

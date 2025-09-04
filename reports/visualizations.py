@@ -20,7 +20,12 @@ from DB.queries import (
     OCEAN_RANKING_TOTAL,
     ORGANIZATION_ACTIVITY,
     CRITICAL_ZONES_HIGHHIGH,
-    CRITICAL_ZONES_LOWBIODIV_HIGHCONT
+    CRITICAL_ZONES_LOWBIODIV_HIGHCONT,
+    SAMPLES_PER_YEAR,
+    METHODS_BY_YEAR_COUNTS,
+    METHODS_BY_WATERSAMPLEDEPTH,
+    MARINE_SETTING_RANKING,
+    MONTHLY_TREND
 )
 
 sns.set(style="whitegrid")
@@ -154,6 +159,111 @@ def plot_critical_lowbiodiv_highcont(df, out_path):
     plt.xticks(rotation=45)
     plt.title("Critical Zones: Low Biodiversity + High Pollution")
     plt.ylabel("number of locations")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=140)
+    plt.close()
+
+def plot_samples_per_year(df: pd.DataFrame, out_path: str):
+    if df.empty:
+        return
+    d = df.copy()
+    d["year"] = d["year"].astype(int)
+    d = d.sort_values("year")
+
+    plt.figure(figsize=(10,5))
+    # barras
+    plt.bar(d["year"], d["n_samples"], alpha=0.7)
+    # línea suave por encima (misma escala)
+    plt.plot(d["year"], d["n_samples"], marker="o", linewidth=2)
+    plt.title("Número de muestreos por año")
+    plt.xlabel("Año"); plt.ylabel("Muestreos (conteo)")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=140)
+    plt.close()
+
+def plot_methods_by_year_area(df: pd.DataFrame, out_path: str, top_methods=6):
+    """
+    Área apilada con los métodos más usados (Top-N); el resto va a 'Others'.
+    """
+    if df.empty:
+        return
+    d = df.copy()
+    d["year"] = d["year"].astype(int)
+
+    # Top-N métodos por volumen total
+    totals = d.groupby("sampling_method")["n_samples"].sum().sort_values(ascending=False)
+    keep = set(totals.head(top_methods).index)
+    d["method_grp"] = d["sampling_method"].where(d["sampling_method"].isin(keep), other="Others")
+
+    # Pivot year x method_grp
+    pvt = d.groupby(["year","method_grp"])["n_samples"].sum().reset_index()
+    pvt = pvt.pivot(index="year", columns="method_grp", values="n_samples").fillna(0).sort_index()
+
+    plt.figure(figsize=(12,6))
+    pvt.plot.area(ax=plt.gca())
+    plt.title("Métodos de muestreo por año (área apilada, Top métodos)")
+    plt.xlabel("Año"); plt.ylabel("Muestreos (conteo)")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=140)
+    plt.close()
+    
+
+def plot_depth_vs_method_heatmap(df, out_path, top_methods=8):
+    if df.empty:
+        return
+
+       # orden lógico fijo
+    order = ["0–5m","5–20m","20–50m","50–200m","200m+", "Unknown"]
+    df = df.copy()
+    df["depth_band"] = pd.Categorical(df["depth_band"], categories=order, ordered=True)
+    df["sampling_method"] = df["sampling_method"].str.strip().str.lower()
+
+    # top métodos
+    top = (df.groupby("sampling_method")["n_samples"]
+             .sum().sort_values(ascending=False).head(top_methods).index)
+    d = df[df["sampling_method"].isin(top)]
+
+    # matriz numérica
+    pivot = (d.pivot_table(index="depth_band", columns="sampling_method",
+                           values="n_samples", aggfunc="sum", fill_value=0)
+               .sort_index())
+
+
+    # Heatmap
+    plt.figure(figsize=(12, 6))
+    sns.heatmap(pivot, annot=True, fmt=".0f", cmap="Blues")
+    plt.title("Métodos de muestreo usados por banda de profundidad")
+    plt.xlabel("Método de muestreo")
+    plt.ylabel("Banda de profundidad")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=140)
+    plt.close()
+    
+def plot_marine_setting_ranking(df, out_path):
+    """Ranking de avg_microplastics por marine_setting."""
+    if df.empty: return
+    df = df.sort_values("avg_microplastics", ascending=True)
+    plt.figure(figsize=(10, 7))
+    plt.barh(df["marine_setting"], df["avg_microplastics"], color="teal")
+    plt.xlabel("Average Microplastics Measurement")
+    plt.ylabel("Marine Setting")
+    plt.title("Top Marine Settings by Average Microplastic Contamination")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=140)
+    plt.close()
+
+def plot_monthly_trend(df, out_path):
+    """Muestra la tendencia estacional de contaminación promedio."""
+    if df.empty: return
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    df = df.set_index("month").reindex(range(1,13)).reset_index()
+    
+    plt.figure(figsize=(10, 5))
+    plt.bar(df["month"], df["avg_microplastics"], color="skyblue")
+    plt.xticks(ticks=df["month"], labels=[month_names[m-1] for m in df["month"]], rotation=45)
+    plt.xlabel("Month")
+    plt.ylabel("Average Microplastics Measurement")
+    plt.title("Seasonal Trend of Average Microplastic Contamination")
     plt.tight_layout()
     plt.savefig(out_path, dpi=140)
     plt.close()
@@ -340,8 +450,27 @@ def generate_all_figures(engine, start_date=None, end_date=None, save_dir="repor
     # 12) Zonas críticas Low-High
     df_lowhigh = _run_df(engine, CRITICAL_ZONES_LOWBIODIV_HIGHCONT, params)
     plot_critical_lowbiodiv_highcont(df_lowhigh, os.path.join(save_dir, "12_critical_lowhigh.png"))
+    
+     # 13) Muestreos por año
+    df_year_samples = _run_df(engine, SAMPLES_PER_YEAR, params)
+    plot_samples_per_year(df_year_samples, os.path.join(save_dir, "13_samples_per_year.png"))
 
+    # 14) Métodos por año
+    df_methods_year = _run_df(engine, METHODS_BY_YEAR_COUNTS, params)
+    plot_methods_by_year_area(df_methods_year, os.path.join(save_dir, "14_methods_by_year_area.png"))
+    
+    #15 ) Métodos por banda de profundidad (heatmap)
+    df_methods_depth = _run_df(engine, METHODS_BY_WATERSAMPLEDEPTH, params) 
+    plot_depth_vs_method_heatmap(df_methods_depth, os.path.join(save_dir, "15_methods_by_depth_heatmap.png"))   
 
+    #16) Ranking por marine setting
+    df_marine_setting = _run_df(engine, MARINE_SETTING_RANKING, params)
+    plot_marine_setting_ranking(df_marine_setting, os.path.join(save_dir, "16_marine_setting_ranking.png"))
+    
+    # 17) Tendencia mensual (barras)
+    df_monthly = _run_df(engine, MONTHLY_TREND, params)
+    plot_monthly_trend(df_monthly, os.path.join(save_dir, "17_monthly_trend.png"))
+    
     if also_show:
         plt.show()
 

@@ -82,6 +82,26 @@ def transform(df_microplastics, df_species):
         " Stainless Steel Spatula": "Stainless steel spatula"
     }
     df_microplastics_clean["sampling_method"] = df_microplastics_clean["sampling_method"].replace(sampling_map)
+    # >>>>> NUEVA LÓGICA PARA water_sample_depth <<<<<
+    mask_na = df_microplastics_clean["water_sample_depth"].isna()
+    # Si sampling_method = Hand picking y water_sample_depth es nulo, asignar 2.5 (representa 0–5m)
+    df_microplastics_clean.loc[
+     (df_microplastics_clean["sampling_method"] == "Hand Picking") &
+     (df_microplastics_clean["water_sample_depth"].isna()),
+     "water_sample_depth"
+    ] = 2.5
+    
+    # Manta net → muestrea la capa superficial (~15–25 cm), usar 0.2 m
+    df_microplastics_clean.loc[
+      mask_na & (df_microplastics_clean["sampling_method"] == "Manta net"),
+      "water_sample_depth"
+    ] = 0.2
+
+    # PVC cylinder → usualmente para sedimento/entorno muy somero (superficial–10 cm), usar 0.1 m
+    df_microplastics_clean.loc[
+     mask_na & (df_microplastics_clean["sampling_method"] == "Pvc Cylinder"),
+     "water_sample_depth"
+    ] = 0.1
 
     # Unit
     unit_map = {
@@ -167,6 +187,8 @@ def transform(df_microplastics, df_species):
     # Organization
     dim_org = df[["organization"]].dropna().drop_duplicates().reset_index(drop=True)
     dim_org["organization_id"] = dim_org.index + 1
+    
+    
 
     # ===== FACTS =====
     fact_micro = (
