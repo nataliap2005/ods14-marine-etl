@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
+import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -16,6 +16,11 @@ from DB.queries import (
     METHOD_EFFECTS_TOP10,
     CONC_CLASS_BY_REGION_TOP10,
     PAIRED_OBSERVATIONS,
+    YEAR_TREND,
+    OCEAN_RANKING_TOTAL,
+    ORGANIZATION_ACTIVITY,
+    CRITICAL_ZONES_HIGHHIGH,
+    CRITICAL_ZONES_LOWBIODIV_HIGHCONT
 )
 
 sns.set(style="whitegrid")
@@ -65,8 +70,94 @@ def plot_method_mesh(df, out_path):
 def plot_critical_zones(df, out_path):
     df = df[df["region"].notna()]
     _save_table(df, out_path)
+#prueba    
+def plot_year_trend(df, out_path):
+    """Línea temporal del total por año con el año pico resaltado."""
+    if df.empty:
+        return
+    x = df["year"].astype(int)
+    y = df["total_microplastics"].astype(float)
 
-import matplotlib.ticker as mticker
+    # índice del valor máximo
+    peak_idx = y.idxmax()
+    peak_year = x.loc[peak_idx]
+    peak_val  = y.loc[peak_idx]
+
+    plt.figure(figsize=(10,5))
+    plt.plot(x, y, marker="o", linewidth=2)
+    # resaltar el pico
+    plt.scatter([peak_year], [peak_val], s=160, edgecolor="k", zorder=3)
+    plt.text(peak_year, peak_val, f"  pico: {int(peak_year)}\n  {peak_val:,.0f}", va="bottom", fontsize=9)
+    plt.title("Total of microplastics by Year (Peak highlighted)")
+    plt.xlabel("Year")
+    plt.ylabel("Total")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=140)
+    plt.close()
+    
+
+
+def plot_ocean_donut(df, out_path, top=6):
+    """Dona de participación por océano sobre el total (Top N + 'Others')."""
+    d = df.dropna(subset=["ocean", "total_microplastics"]).copy()
+    if d.empty:
+        return
+
+    total = d["total_microplastics"].sum()
+    d["share"] = d["total_microplastics"] / total
+    d = d.sort_values("share", ascending=False)
+
+    top_df = d.head(top)
+    others_share = d["share"][top:].sum()
+    pie_df = top_df[["ocean", "share"]].copy()
+    if others_share > 0:
+        pie_df = pd.concat([pie_df, pd.DataFrame([{"ocean": "Others", "share": others_share}])],
+                           ignore_index=True)
+
+    plt.figure(figsize=(7,7))
+    wedges, _ = plt.pie(pie_df["share"], startangle=90, wedgeprops=dict(width=0.35))  # dona
+    # leyenda
+    labels = [f'{o} ({s*100:.1f}%)' for o, s in zip(pie_df["ocean"], pie_df["share"])]
+    plt.legend(wedges, labels, loc="center left", bbox_to_anchor=(1, 0.5))
+    plt.title("participation by Ocean (Top 6 + Others)")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=140)
+    plt.close()
+
+def plot_org_lollipop(df, out_path, top=12):
+    d = df.sort_values("n_samples", ascending=True).tail(top)
+    y = range(len(d))
+    plt.figure(figsize=(10,6))
+    plt.hlines(y, 0, d["n_samples"], color="gray", alpha=0.6)
+    plt.plot(d["n_samples"], y, "o")
+    plt.yticks(y, d["organization"])
+    plt.xlabel("Number of samples"); plt.title("Activy by organization(Top)")
+    plt.tight_layout(); plt.savefig(out_path, dpi=140); plt.close()
+    
+def plot_critical_highhigh(df, out_path):
+    """Regiones con alta biodiversidad y alta contaminación."""
+    if df.empty: return
+    plt.figure(figsize=(10,6))
+    plt.bar(df["region"], df["n_high_high"], color="darkred")
+    plt.xticks(rotation=45)
+    plt.title("Zonas críticas: Alta biodiversidad + Alta contaminación")
+    plt.ylabel("Número de ubicaciones")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=140)
+    plt.close()
+
+def plot_critical_lowbiodiv_highcont(df, out_path):
+    """Regiones con baja biodiversidad y alta contaminación."""
+    if df.empty: return
+    plt.figure(figsize=(10,6))
+    plt.bar(df["region"], df["n_low_high"], color="orange")
+    plt.xticks(rotation=45)
+    plt.title("Critical Zones: Low Biodiversity + High Pollution")
+    plt.ylabel("number of locations")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=140)
+    plt.close()
+
 
 def plot_region_hotspots(df, out_path):
     df = df[df["region"].notna()]
@@ -194,8 +285,6 @@ def plot_species_micro_map(df: pd.DataFrame, out_path: str, top_n=200):
     plt.tight_layout()
     plt.savefig(out_path, dpi=140)
     plt.show()
-
-
 # ---------------------------
 # Generate All Figures
 # ---------------------------
@@ -230,6 +319,28 @@ def generate_all_figures(engine, start_date=None, end_date=None, save_dir="repor
     # 7) Global map
     df_map = _run_df(engine, PAIRED_OBSERVATIONS, params)
     plot_species_micro_map(df_map, os.path.join(save_dir, "07_species_micro_map.png"))
+    
+    # 8) Trend by año
+    df_year = _run_df(engine, YEAR_TREND, params)
+    plot_year_trend(df_year, os.path.join(save_dir, "08_year_trend.png"))
+
+    # 9) Ranking by ocean (dona)
+    df_ocean = _run_df(engine, OCEAN_RANKING_TOTAL, params)
+    plot_ocean_donut(df_ocean, os.path.join(save_dir, "09_ocean_donut.png"))
+    
+    #10) Activy by organization (lollipop)
+    df_org = _run_df(engine, ORGANIZATION_ACTIVITY, params)
+    plot_org_lollipop(df_org, os.path.join(save_dir, "10_org_lollipop.png"))
+    
+    
+   # 11) Zonas críticas High-High
+    df_highhigh = _run_df(engine, CRITICAL_ZONES_HIGHHIGH, params)
+    plot_critical_highhigh(df_highhigh, os.path.join(save_dir, "11_critical_highhigh.png"))
+
+    # 12) Zonas críticas Low-High
+    df_lowhigh = _run_df(engine, CRITICAL_ZONES_LOWBIODIV_HIGHCONT, params)
+    plot_critical_lowbiodiv_highcont(df_lowhigh, os.path.join(save_dir, "12_critical_lowhigh.png"))
+
 
     if also_show:
         plt.show()
@@ -242,6 +353,12 @@ def generate_all_figures(engine, start_date=None, end_date=None, save_dir="repor
         "method": df_method,
         "conc_matrix": df_matrix,
         "species_micro_map": df_map,
+        "year_trend": df_year,
+        "ocean_donut": df_ocean,
+        "org_lollipop": df_org,
+        "critical_highhigh": df_highhigh,
+        "critical_lowhigh": df_lowhigh
+
     }
 
 if __name__ == "__main__":

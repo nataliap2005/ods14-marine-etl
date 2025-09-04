@@ -166,3 +166,126 @@ LEFT JOIN dim_date d ON m.date_id = d.date_id
 WHERE l.latitude IS NOT NULL
   AND l.longitude IS NOT NULL;
 """)
+
+# -------------------------------------------------
+#prueba
+# 8) 
+# ===== Nuevas consultas =====
+
+# Tendencia por año (promedio, total y #muestras)
+YEAR_TREND = text("""
+SELECT
+  d.year,
+  AVG(m.measurement)  AS avg_microplastics,
+  SUM(m.measurement)  AS total_microplastics,
+  COUNT(*)            AS n_samples
+FROM fact_microplastics m
+JOIN dim_date d ON d.date_id = m.date_id
+WHERE (:start_date IS NULL OR d.full_date >= :start_date)
+  AND (:end_date   IS NULL OR d.full_date <  :end_date)
+GROUP BY d.year
+ORDER BY d.year;
+""")
+
+# Ranking por océano (total, promedio y #muestras)
+OCEAN_RANKING_TOTAL = text("""
+SELECT
+  o.ocean,
+  SUM(m.measurement) AS total_microplastics,
+  AVG(m.measurement) AS avg_microplastics,
+  COUNT(*)           AS n_samples
+FROM fact_microplastics m
+LEFT JOIN dim_ocean o ON o.ocean_id = m.ocean_id
+LEFT JOIN dim_date d  ON d.date_id   = m.date_id
+WHERE (:start_date IS NULL OR d.full_date >= :start_date)
+  AND (:end_date   IS NULL OR d.full_date <  :end_date)
+GROUP BY o.ocean
+ORDER BY total_microplastics DESC;
+""")
+
+ORGANIZATION_ACTIVITY = text("""
+SELECT
+  org.organization,
+  COUNT(*)           AS n_samples,
+  SUM(m.measurement) AS total_microplastics,
+  AVG(m.measurement) AS avg_microplastics
+FROM fact_microplastics m
+LEFT JOIN dim_organization org ON org.organization_id = m.organization_id
+LEFT JOIN dim_date d           ON d.date_id          = m.date_id
+WHERE (:start_date IS NULL OR d.full_date >= :start_date)
+  AND (:end_date   IS NULL OR d.full_date <  :end_date)
+GROUP BY org.organization
+ORDER BY n_samples DESC;
+""")
+
+# 12) ZONAS CRÍTICAS – High-High (alta biodiversidad + alta contaminación)
+CRITICAL_ZONES_HIGHHIGH = text("""
+-- 1) Promedio por ubicación
+WITH loc AS (
+  SELECT
+    m.location_id,
+    AVG(m.measurement) AS avg_micro
+  FROM fact_microplastics m
+  GROUP BY m.location_id
+),
+pair AS (
+  SELECT
+    l.location_id,
+    l.avg_micro,
+    s.species_count,
+    m.region_id
+  FROM loc l
+  JOIN fact_species s      ON s.location_id = l.location_id
+  JOIN fact_microplastics m ON m.location_id = l.location_id
+),
+-- 2) Cuartiles (NTILE) para definir alto/bajo
+ranked AS (
+  SELECT
+    p.*,
+    NTILE(4) OVER (ORDER BY avg_micro)     AS q_micro,
+    NTILE(4) OVER (ORDER BY species_count) AS q_species
+  FROM pair p
+)
+SELECT
+  r.region,
+  COUNT(*) AS n_high_high
+FROM ranked
+JOIN dim_region r ON r.region_id = ranked.region_id
+WHERE q_micro = 4 AND q_species = 4
+GROUP BY r.region
+ORDER BY n_high_high DESC;
+""")
+
+# 13) ZONAS CRÍTICAS – Low-High (baja biodiversidad + alta contaminación)
+CRITICAL_ZONES_LOWBIODIV_HIGHCONT = text("""
+WITH loc AS (
+  SELECT m.location_id, AVG(m.measurement) AS avg_micro
+  FROM fact_microplastics m
+  GROUP BY m.location_id
+),
+pair AS (
+  SELECT
+    l.location_id,
+    l.avg_micro,
+    s.species_count,
+    m.region_id
+  FROM loc l
+  JOIN fact_species s      ON s.location_id = l.location_id
+  JOIN fact_microplastics m ON m.location_id = l.location_id
+),
+ranked AS (
+  SELECT
+    p.*,
+    NTILE(4) OVER (ORDER BY avg_micro)     AS q_micro,
+    NTILE(4) OVER (ORDER BY species_count) AS q_species
+  FROM pair p
+)
+SELECT
+  r.region,
+  COUNT(*) AS n_low_high
+FROM ranked
+JOIN dim_region r ON r.region_id = ranked.region_id
+WHERE q_micro = 4 AND q_species = 1
+GROUP BY r.region
+ORDER BY n_low_high DESC;
+""")
