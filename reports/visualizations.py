@@ -75,7 +75,7 @@ def plot_method_mesh(df, out_path):
 def plot_critical_zones(df, out_path):
     df = df[df["region"].notna()]
     _save_table(df, out_path)
-#prueba    
+
 def plot_year_trend(df, out_path):
     """Línea temporal del total por año con el año pico resaltado."""
     if df.empty:
@@ -90,12 +90,16 @@ def plot_year_trend(df, out_path):
 
     plt.figure(figsize=(10,5))
     plt.plot(x, y, marker="o", linewidth=2)
+    
     # resaltar el pico
     plt.scatter([peak_year], [peak_val], s=160, edgecolor="k", zorder=3)
     plt.text(peak_year, peak_val, f"  pico: {int(peak_year)}\n  {peak_val:,.0f}", va="bottom", fontsize=9)
     plt.title("Total of microplastics by Year (Peak highlighted)")
     plt.xlabel("Year")
     plt.ylabel("Total")
+    ax = plt.gca()
+    ax = plt.gca()
+    ax.yaxis.set_major_formatter(mticker.StrMethodFormatter("{x:,.0f}"))
     plt.tight_layout()
     plt.savefig(out_path, dpi=140)
     plt.close()
